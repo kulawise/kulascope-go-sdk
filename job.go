@@ -53,14 +53,12 @@ func trySend(cfg Config, payload CreateLogRequest) error {
 		return err
 	}
 
-	// var url string
-	// if cfg.Environment == Staging {
-	// 	url = "https://scope-api.staging.kulawise.com/v1/logs"
-	// } else {
-	// 	url = "https://scope-api.kulawise.com/v1/logs"
-	// }
-
-	var url = "http://localhost:8008/logs"
+	var url string
+	if cfg.Environment == Staging {
+		url = "https://api.staging.kulawise.com/kulascope/logs"
+	} else {
+		url = "https://api.kulawise.com/kulascope/logs"
+	}
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(b))
 	if err != nil {

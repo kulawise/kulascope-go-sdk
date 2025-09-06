@@ -1,6 +1,12 @@
 # kulascope-go-sdk
 This SDK is written to be used in a Go Fiber server, for observability
 
+## Installation
+
+```
+go get github.com/kulawise/kulascope-sdk-go
+```
+
 
 ## Usage
 ```

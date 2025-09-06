@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	// "github.com/kulawise/kulascope-sdk-go/log"
 	"github.com/rs/zerolog"
 )
 
@@ -154,11 +155,11 @@ func AccessLog(ctx context.Context, method, path string, status int, start time.
 	})
 }
 
-const logsKey contextKey = "request_logs"
+// const logsKey contextKey = "request_logs"
 
-func getLogs(ctx context.Context) []SubLogRequest {
-	if logs, ok := ctx.Value(logsKey).([]SubLogRequest); ok {
-		return logs
-	}
-	return nil
-}
+// func getLogs(ctx context.Context) []log.SubLogRequest {
+// 	if logs, ok := ctx.Value(logsKey).([]log.SubLogRequest); ok {
+// 		return logs
+// 	}
+// 	return nil
+// }

@@ -13,21 +13,38 @@ import (
 func Middleware(cfg Config) fiber.Handler {
 	Init(cfg)
 
-	// Create the base zerolog logger internally
 	baseLogger := zerolog.New(os.Stdout).With().Timestamp().Logger()
 
 	return func(c *fiber.Ctx) error {
 		start := time.Now()
 		traceID := uuid.New()
 
-		// Create a new request context with logger + trace ID
+		rw := WrapResponseWriter(c)
+
+		reqHeaders := make(map[string][]string)
+		c.Request().Header.VisitAll(func(k, v []byte) {
+			reqHeaders[string(k)] = []string{string(v)}
+		})
+		redactedReqHeaders := redactHeaders(reqHeaders, cfg.RedactHeaders)
+
+		reqBody := c.Body()
+		redactedReqBody := redactJSON(reqBody, cfg.RedactRequestBody)
+
 		ctx := log.NewContext(c.UserContext(), &baseLogger, traceID)
 		c.SetUserContext(ctx)
 
-		// Call next handler
 		err := c.Next()
 
-		// Collect request metadata
+		resHeaders := make(map[string][]string)
+		c.Response().Header.VisitAll(func(k, v []byte) {
+			resHeaders[string(k)] = []string{string(v)}
+		})
+		redactedRespHeaders := redactHeaders(resHeaders, cfg.RedactHeaders)
+
+		respBody := c.Response().Body()
+		respCopy := append([]byte(nil), respBody...)
+		redactedRespBody := redactJSON(respCopy, cfg.RedactResponseBody)
+
 		userAgent := c.Get("User-Agent")
 		ip := c.IP()
 		status := c.Response().StatusCode()
@@ -35,27 +52,34 @@ func Middleware(cfg Config) fiber.Handler {
 		path := c.Path()
 		latency := int(time.Since(start).Milliseconds())
 
-		// Collect sub logs from this request
 		subLogs := log.SubLogsFromContext(ctx)
 
-		// Create top-level request log
-
-		req := CreateLogRequest{
-			TraceID: traceID,
-			Level:   "info",
-			Message: "http request completed",
-			Status:  &status,
-			Method:  &method,
-			Path:    &path,
-			Latency: &latency,
-			IP:      &ip,
-			Metadata: map[string]any{
-				"user_agent": userAgent,
-			},
-			SubLogs: subLogs,
+		metadata := map[string]any{
+			"user_agent":       userAgent,
+			"request_headers":  redactedReqHeaders,
+			"request_body":     string(redactedReqBody),
+			"response_headers": redactedRespHeaders,
+			"response_body":    string(redactedRespBody),
+			"content_type":     string(c.Request().Header.ContentType()),
+			"request_size":     len(reqBody),
+			"response_size":    rw.Size(),
+			"referer":          c.Get("Referer"),
+			"host":             string(c.Request().Host()),
 		}
 
-		// Enqueue log for asynchronous sending
+		req := CreateLogRequest{
+			TraceID:  traceID,
+			Level:    "info",
+			Message:  "http request completed",
+			Status:   &status,
+			Method:   &method,
+			Path:     &path,
+			Latency:  &latency,
+			IP:       &ip,
+			Metadata: metadata,
+			SubLogs:  subLogs,
+		}
+
 		sendQueue <- sendJob{cfg: cfg, payload: req}
 
 		return err

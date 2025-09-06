@@ -22,7 +22,7 @@ type Config struct {
 }
 
 func NewConfig(env string) (Config, error) {
-	environment, err := ParseEnvironment(env)
+	environment, err := parseEnvironment(env)
 	if err != nil {
 		return Config{}, err
 	}

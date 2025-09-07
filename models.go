@@ -2,7 +2,7 @@ package kulascope
 
 import (
 	"github.com/google/uuid"
-	"github.com/kulawise/kulascope-sdk-go/log"
+	"github.com/kulawise/kulascope-go-sdk/log"
 )
 
 type CreateLogRequest struct {

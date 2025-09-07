@@ -1,4 +1,4 @@
-module github.com/kulawise/kulascope-sdk-go
+module github.com/kulawise/kulascope-go-sdk
 
 go 1.23.2
 

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	// "github.com/kulawise/kulascope-sdk-go/log"
+	// "github.com/kulawise/kulascope-go-sdk/log"
 	"github.com/rs/zerolog"
 )
 

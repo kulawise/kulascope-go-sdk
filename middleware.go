@@ -68,16 +68,17 @@ func Middleware(cfg Config) fiber.Handler {
 		}
 
 		req := CreateLogRequest{
-			TraceID:  traceID,
-			Level:    "info",
-			Message:  "http request completed",
-			Status:   &status,
-			Method:   &method,
-			Path:     &path,
-			Latency:  &latency,
-			IP:       &ip,
-			Metadata: metadata,
-			SubLogs:  subLogs,
+			TraceID:   traceID,
+			Level:     "info",
+			Message:   "http request completed",
+			Status:    &status,
+			Method:    &method,
+			Path:      &path,
+			Latency:   &latency,
+			IP:        &ip,
+			Metadata:  metadata,
+			SubLogs:   subLogs,
+			Timestamp: time.Now(),
 		}
 
 		sendQueue <- sendJob{cfg: cfg, payload: req}

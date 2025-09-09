@@ -2,7 +2,9 @@ package log
 
 import (
 	"context"
+	"fmt"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
@@ -17,10 +19,11 @@ const (
 
 // SubLogRequest represents an individual log entry stored per request
 type SubLogRequest struct {
-	Level    string         `json:"level"`
-	Message  string         `json:"message"`
-	Metadata map[string]any `json:"metadata,omitempty"`
-	Error    string         `json:"error,omitempty"`
+	Level     string         `json:"level"`
+	Message   string         `json:"message"`
+	Metadata  map[string]any `json:"metadata,omitempty"`
+	Error     string         `json:"error,omitempty"`
+	Timestamp time.Time      `json:"timestamp"`
 }
 
 // EventLogger is the per-request logger
@@ -72,9 +75,10 @@ func (l *EventLogger) appendLog(level, msg string, metadata map[string]any, err 
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	entry := SubLogRequest{
-		Level:    level,
-		Message:  msg,
-		Metadata: metadata,
+		Level:     level,
+		Message:   msg,
+		Metadata:  metadata,
+		Timestamp: time.Now(),
 	}
 	if err != nil {
 		entry.Error = err.Error()
@@ -121,6 +125,7 @@ func (e *EventWrapper) Err(err error) *EventWrapper {
 	if err != nil {
 		e.err = err
 		e.event.Err(err)
+		e.metadata["error"] = err.Error()
 	}
 	return e
 }
@@ -129,6 +134,71 @@ func (e *EventWrapper) Err(err error) *EventWrapper {
 func (e *EventWrapper) Msg(msg string) {
 	e.logger.appendLog(e.level, msg, e.metadata, e.err)
 	e.event.Msg(msg)
+}
+
+// Msgf writes a formatted log message and stores it in sublogs
+func (e *EventWrapper) Msgf(format string, args ...any) {
+	msg := fmt.Sprintf(format, args...)
+	e.logger.appendLog(e.level, msg, e.metadata, e.err)
+	e.event.Msg(msg)
+}
+
+func (e *EventWrapper) Interface(key string, val any) *EventWrapper {
+	e.metadata[key] = val
+	e.event.Interface(key, val) // call underlying zerolog
+	return e
+}
+
+// Bool adds a boolean field to the event
+func (e *EventWrapper) Bool(key string, val bool) *EventWrapper {
+	e.metadata[key] = val
+	e.event.Bool(key, val)
+	return e
+}
+
+// Float64 adds a float64 field
+func (e *EventWrapper) Float64(key string, val float64) *EventWrapper {
+	e.metadata[key] = val
+	e.event.Float64(key, val)
+	return e
+}
+
+// Dur adds a time.Duration field
+func (e *EventWrapper) Dur(key string, val time.Duration) *EventWrapper {
+	e.metadata[key] = val
+	e.event.Dur(key, val)
+	return e
+}
+
+// Time adds a time.Time field
+func (e *EventWrapper) Time(key string, val time.Time) *EventWrapper {
+	e.metadata[key] = val
+	e.event.Time(key, val)
+	return e
+}
+
+func (e *EventWrapper) RawJSON(key string, val []byte) *EventWrapper {
+	e.metadata[key] = string(val)
+	e.event.RawJSON(key, val)
+	return e
+}
+
+// An example of adding nested object support (like Dict in zerolog)
+func (e *EventWrapper) Dict(key string, dict *zerolog.Event) *EventWrapper {
+	e.event.Dict(key, dict)
+	return e
+}
+
+// Any is an alias for Interface
+func (e *EventWrapper) Any(key string, val any) *EventWrapper {
+	return e.Interface(key, val)
+}
+
+// Strs adds a slice of strings field to the event
+func (e *EventWrapper) Strs(key string, val []string) *EventWrapper {
+	e.metadata[key] = val
+	e.event.Strs(key, val)
+	return e
 }
 
 // ---------------------- Convenience methods ----------------------

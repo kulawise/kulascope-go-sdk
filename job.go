@@ -53,6 +53,10 @@ func trySend(cfg Config, payload CreateLogRequest) error {
 		return err
 	}
 
+	if cfg.APIKey == "" {
+		return nil
+	}
+
 	var url string
 	if cfg.Environment == Staging {
 		url = "https://api.staging.kulawise.com/kulascope/logs"

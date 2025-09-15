@@ -2,6 +2,7 @@ package kulascope
 
 import (
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -46,7 +47,17 @@ func Middleware(cfg Config) fiber.Handler {
 		redactedRespBody := redactJSON(respCopy, cfg.RedactResponseBody)
 
 		userAgent := c.Get("User-Agent")
-		ip := c.IP()
+		ip := c.Get("X-Forwarded-For")
+		if ip != "" {
+			ips := strings.Split(ip, ",")
+			ip = strings.TrimSpace(ips[0])
+		} else {
+			ip = c.Get("X-Real-IP")
+			if ip == "" {
+				ip = c.IP()
+			}
+		}
+
 		status := c.Response().StatusCode()
 		method := c.Method()
 		path := c.Path()

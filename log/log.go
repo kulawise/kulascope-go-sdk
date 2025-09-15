@@ -2,7 +2,9 @@ package log
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"reflect"
 	"sync"
 	"time"
 
@@ -74,10 +76,39 @@ func (l *EventLogger) Logs() []SubLogRequest {
 func (l *EventLogger) appendLog(level, msg string, metadata map[string]any, err error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+
+	// Deep-copy metadata
+	copied := make(map[string]any, len(metadata))
+	for k, v := range metadata {
+		copied[k] = v
+	}
+
+	// Convert any string that looks like JSON into map[string]any
+	for k, v := range copied {
+		switch val := v.(type) {
+		case string:
+			var parsed map[string]any
+			if err := json.Unmarshal([]byte(val), &parsed); err == nil {
+				copied[k] = parsed
+			}
+		case fmt.Stringer:
+			// Optional: try to parse fmt.Stringer output as JSON too
+			if str := val.String(); str != "" {
+				var parsed map[string]any
+				if err := json.Unmarshal([]byte(str), &parsed); err == nil {
+					copied[k] = parsed
+				}
+			}
+		}
+	}
+
+	// Recursively redact
+	redacted := redactMetadata(copied)
+
 	entry := SubLogRequest{
 		Level:     level,
 		Message:   msg,
-		Metadata:  metadata,
+		Metadata:  redacted,
 		Timestamp: time.Now(),
 	}
 	if err != nil {
@@ -144,8 +175,18 @@ func (e *EventWrapper) Msgf(format string, args ...any) {
 }
 
 func (e *EventWrapper) Interface(key string, val any) *EventWrapper {
+	// Convert struct -> map[string]any
+	if reflect.TypeOf(val).Kind() == reflect.Struct {
+		b, err := json.Marshal(val)
+		if err == nil {
+			var m map[string]any
+			if err := json.Unmarshal(b, &m); err == nil {
+				val = m
+			}
+		}
+	}
 	e.metadata[key] = val
-	e.event.Interface(key, val) // call underlying zerolog
+	e.event.Interface(key, val)
 	return e
 }
 

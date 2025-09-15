@@ -2,7 +2,6 @@ package kulascope
 
 import (
 	"os"
-	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -11,8 +10,23 @@ import (
 	"github.com/rs/zerolog"
 )
 
+var defaultRedactBodyKeys = []string{
+	"password",
+	"secret",
+	"token",
+}
+
+var defaultRedactHeaderKeys = []string{
+	"authorization",
+	"cookie",
+}
+
 func Middleware(cfg Config) fiber.Handler {
 	Init(cfg)
+
+	cfg.RedactRequestBody = mergeRedactKeys(defaultRedactBodyKeys, cfg.RedactRequestBody)
+	cfg.RedactResponseBody = mergeRedactKeys(defaultRedactBodyKeys, cfg.RedactResponseBody)
+	cfg.RedactHeaders = mergeRedactKeys(defaultRedactHeaderKeys, cfg.RedactHeaders)
 
 	baseLogger := zerolog.New(os.Stdout).With().Timestamp().Logger()
 
@@ -29,7 +43,7 @@ func Middleware(cfg Config) fiber.Handler {
 		redactedReqHeaders := redactHeaders(reqHeaders, cfg.RedactHeaders)
 
 		reqBody := c.Body()
-		redactedReqBody := redactJSON(reqBody, cfg.RedactRequestBody)
+		redactedReqBody := RedactJSON(reqBody, cfg.RedactRequestBody)
 
 		ctx := log.NewContext(c.UserContext(), &baseLogger, traceID)
 		c.SetUserContext(ctx)
@@ -44,19 +58,21 @@ func Middleware(cfg Config) fiber.Handler {
 
 		respBody := c.Response().Body()
 		respCopy := append([]byte(nil), respBody...)
-		redactedRespBody := redactJSON(respCopy, cfg.RedactResponseBody)
+		redactedRespBody := RedactJSON(respCopy, cfg.RedactResponseBody)
 
 		userAgent := c.Get("User-Agent")
-		ip := c.Get("X-Forwarded-For")
-		if ip != "" {
-			ips := strings.Split(ip, ",")
-			ip = strings.TrimSpace(ips[0])
-		} else {
-			ip = c.Get("X-Real-IP")
-			if ip == "" {
-				ip = c.IP()
-			}
-		}
+		ip := c.IP()
+		// ip := c.Get("X-Forwarded-For")
+		// if ip != "" {
+
+		// 	ips := strings.Split(ip, ",")
+		// 	ip = strings.TrimSpace(ips[0])
+		// } else {
+		// 	ip = c.Get("X-Real-IP")
+		// 	if ip == "" {
+		// 		ip = c.IP()
+		// 	}
+		// }
 
 		status := c.Response().StatusCode()
 		method := c.Method()
